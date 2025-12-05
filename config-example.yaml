@@ -1,0 +1,10 @@
+server:
+  port: 
+  log_level: 
+
+db:
+  neo4j:
+    host: 
+    port: 
+    username: 
+    password: 
