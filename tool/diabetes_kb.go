@@ -12,7 +12,7 @@ import (
 
 const (
 	DefaultSearchResultLimit = 20
-	Neo4jFullTextName        = "fullTextSearch"
+	Neo4jFulltextName        = "fulltextSearch"
 )
 
 // SearchDiabetesKnowledgeBase 检索糖尿病知识检索
@@ -59,6 +59,7 @@ func searchKnowledgeGraph(ctx context.Context, query string, limit int) ([]map[s
 	session := dao.Driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
 	defer session.Close(ctx)
 
+	// 查询至少有一个关系的节点
 	cypherQuery := `
 	CALL db.index.fulltext.queryNodes($indexName, $query) 
 	YIELD node, score
@@ -77,7 +78,7 @@ func searchKnowledgeGraph(ctx context.Context, query string, limit int) ([]map[s
 	`
 
 	result, err := session.Run(ctx, cypherQuery, map[string]any{
-		"indexName": Neo4jFullTextName,
+		"indexName": Neo4jFulltextName,
 		"query":     query,
 		"limit":     limit,
 	})
@@ -98,7 +99,7 @@ func searchKnowledgeGraph(ctx context.Context, query string, limit int) ([]map[s
 	return results, nil
 }
 
-// 检索向量数据库
+// 检索向量数据库（用户上传的知识文件）
 func searchVectorDB(ctx context.Context, query string, limit int) ([]map[string]any, error) {
 	return nil, nil
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"diabetes-agent-mcp-server/config"
-	"diabetes-agent-mcp-server/dao"
 	"diabetes-agent-mcp-server/tool"
 	"encoding/json"
 	"fmt"
@@ -13,6 +12,8 @@ import (
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
+
+const createIndexTimeout = 10
 
 type Entity struct {
 	EntityID   string `json:"entity_id"`
@@ -86,7 +87,7 @@ func main() {
 	}
 
 	// 检查全文索引，若不存在进行创建
-	if err := checkFullTextIndex(ctx); err != nil {
+	if err := checkFullTextIndex(ctx, driver); err != nil {
 		slog.Error("Failed to check fulltext index", "err", err)
 		return
 	}
@@ -235,8 +236,10 @@ func saveRelation(tx neo4j.ManagedTransaction, relation Relation) error {
 	return nil
 }
 
-func checkFullTextIndex(ctx context.Context) error {
-	s := dao.Driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+func checkFullTextIndex(ctx context.Context, driver neo4j.DriverWithContext) error {
+	s := driver.NewSession(ctx, neo4j.SessionConfig{
+		AccessMode: neo4j.AccessModeWrite,
+	})
 	defer s.Close(ctx)
 
 	check := `
@@ -245,7 +248,7 @@ func checkFullTextIndex(ctx context.Context) error {
 	WHERE name = $name
 	RETURN count(*) AS count
 	`
-	res, err := s.Run(ctx, check, map[string]any{"name": tool.Neo4jFullTextName})
+	res, err := s.Run(ctx, check, map[string]any{"name": tool.Neo4jFulltextName})
 	if err != nil {
 		return fmt.Errorf("failed to list fulltext indexes: %w", err)
 	}
@@ -262,14 +265,14 @@ func checkFullTextIndex(ctx context.Context) error {
 		return fmt.Errorf("failed to read index list: %v", err)
 	}
 	if idxExists {
-		slog.Info(fmt.Sprintf("%s index already exists", tool.Neo4jFullTextName))
+		slog.Info(fmt.Sprintf("%s index already exists", tool.Neo4jFulltextName))
 		return nil
 	}
 
 	// 在 Entity 节点的 name 和 type 属性上建立全文索引
 	create := fmt.Sprintf(`
 	CREATE FULLTEXT INDEX %s FOR (n:Entity) ON EACH [n.name, n.type]
-	`, tool.Neo4jFullTextName)
+	`, tool.Neo4jFulltextName)
 
 	_, err = s.Run(ctx, create, nil)
 	if err != nil {
@@ -277,11 +280,13 @@ func checkFullTextIndex(ctx context.Context) error {
 	}
 
 	// 等待全文索引创建完成
-	wait := fmt.Sprintf(`CALL db.awaitIndexes("%s")`, tool.Neo4jFullTextName)
+	wait := fmt.Sprintf(`CALL db.awaitIndexes("%d")`, createIndexTimeout)
 	_, err = s.Run(ctx, wait, nil)
 	if err != nil {
 		return fmt.Errorf("failed to wait for index creation: %v", err)
 	}
+
+	slog.Info(fmt.Sprintf("Successfully created index: %s", tool.Neo4jFulltextName))
 
 	return nil
 }
