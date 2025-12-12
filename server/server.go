@@ -1,6 +1,7 @@
 package server
 
 import (
+	"diabetes-agent-mcp-server/middleware"
 	"diabetes-agent-mcp-server/tool"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -15,6 +16,7 @@ const (
 func NewHTTPServer() *server.StreamableHTTPServer {
 	s := server.NewMCPServer(serverName, serverVersion,
 		server.WithToolCapabilities(true),
+		server.WithToolHandlerMiddleware(middleware.AuthMiddleware),
 	)
 
 	addTools(s)

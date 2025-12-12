@@ -4,6 +4,7 @@ import (
 	"context"
 	"diabetes-agent-mcp-server/config"
 	"fmt"
+	"time"
 
 	"github.com/milvus-io/milvus/client/v2/milvusclient"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
@@ -27,7 +28,9 @@ func init() {
 		panic(fmt.Sprintf("Failed to create Neo4j driver: %v", err))
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	if err := Driver.VerifyConnectivity(ctx); err != nil {
 		panic(fmt.Sprintf("Failed to connect to Neo4j server: %v", err))
 	}

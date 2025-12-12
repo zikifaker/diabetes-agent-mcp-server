@@ -17,3 +17,6 @@ milvus:
 
 model:
   api_key: 
+
+jwt:
+  secret_key: 

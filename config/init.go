@@ -24,6 +24,9 @@ type Config struct {
 	Model struct {
 		APIKey string `yaml:"api_key"`
 	} `yaml:"model"`
+	JWT struct {
+		SecretKey string `yaml:"secret_key"`
+	} `yaml:"jwt"`
 }
 
 type DBConfig struct {

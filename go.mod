@@ -5,6 +5,7 @@ go 1.24.6
 toolchain go1.24.9
 
 require (
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/mark3labs/mcp-go v0.42.0
 	github.com/milvus-io/milvus/client/v2 v2.6.1
 	github.com/mitchellh/mapstructure v1.5.0

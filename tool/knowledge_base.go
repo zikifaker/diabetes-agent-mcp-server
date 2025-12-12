@@ -29,8 +29,8 @@ var (
 )
 
 type VectorDBSearchResult struct {
-	Chunk string    `json:"chunk"`
-	Score []float32 `json:"score"`
+	Chunk string  `json:"chunk"`
+	Score float32 `json:"score"`
 }
 
 func init() {
@@ -67,7 +67,7 @@ func SearchUserKnowledgeBase(ctx context.Context, req mcp.CallToolRequest) (*mcp
 	query := req.GetString("query", "")
 	if query == "" {
 		content := mcp.TextContent{
-			Text: "query param is required",
+			Text: "required query param",
 		}
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{content},
@@ -75,12 +75,7 @@ func SearchUserKnowledgeBase(ctx context.Context, req mcp.CallToolRequest) (*mcp
 		}, nil
 	}
 
-	slog.Debug("kb query", "query", query)
-
 	limit := req.GetInt("limit", DefaultSearchResultLimit)
-
-	// TODO: 获取 user email
-
 	results, err := retrieveSimilarDocuments(ctx, query, limit)
 	if err != nil {
 		slog.Error("Failed to search vector store", "err", err)
@@ -97,30 +92,34 @@ func retrieveSimilarDocuments(ctx context.Context, query string, limit int) ([]V
 		return nil, fmt.Errorf("error embedding query: %v", err)
 	}
 
+	// 从上下文获取用户邮箱
+	userEmail := ctx.Value("user_email").(string)
 	searchOption := client.NewSearchOption(collectionName, limit, []entity.Vector{entity.FloatVector(vector)}).
-		WithOutputFields("text")
+		WithOutputFields("text").
+		WithFilter("user_email == '" + userEmail + "'")
 
-	results, err := milvusClient.Search(ctx, searchOption)
+	resultSets, err := milvusClient.Search(ctx, searchOption)
 	if err != nil {
 		return nil, fmt.Errorf("error searching vector store: %v", err)
 	}
 
-	structedResults := make([]VectorDBSearchResult, 0, len(results))
-	for _, res := range results {
-		// 获取 text 字段内容
-		var text string
-		if textColumn := res.GetColumn("text"); textColumn != nil {
-			if content, ok := textColumn.(*column.ColumnVarChar); ok {
-				if content.Len() > 0 {
-					text, _ = content.GetAsString(0)
+	structedResults := make([]VectorDBSearchResult, 0)
+	for _, resSet := range resultSets {
+		for i := 0; i < resSet.ResultCount; i++ {
+			var text string
+			if textColumn := resSet.GetColumn("text"); textColumn != nil {
+				if content, ok := textColumn.(*column.ColumnVarChar); ok {
+					if content.Len() > 0 {
+						text, _ = content.GetAsString(i)
+					}
 				}
 			}
-		}
 
-		structedResults = append(structedResults, VectorDBSearchResult{
-			Chunk: text,
-			Score: res.Scores,
-		})
+			structedResults = append(structedResults, VectorDBSearchResult{
+				Chunk: text,
+				Score: resSet.Scores[i],
+			})
+		}
 	}
 
 	return structedResults, nil
