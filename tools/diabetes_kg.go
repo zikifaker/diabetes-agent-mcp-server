@@ -1,20 +1,18 @@
-package tool
+package tools
 
 import (
 	"context"
 	"diabetes-agent-mcp-server/dao"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mitchellh/mapstructure"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
 
-const (
-	DefaultSearchResultLimit = 10
-	Neo4jFulltextName        = "fulltextSearch"
-)
+const Neo4jFulltextIndexName = "fulltext_index_entity_name"
 
 type KnowlegeGraphSearchResult struct {
 	Node          EntityNode `json:"node"`
@@ -32,21 +30,24 @@ type Relation struct {
 	Related EntityNode `json:"related"`
 }
 
-// SearchDiabetesKnowledgeGraph 检索基于 DiaKG 构建的图数据库。召回实体-关系
+// SearchDiabetesKnowledgeGraph 检索基于 DiaKG 构建的图数据库
 func SearchDiabetesKnowledgeGraph(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	query := req.GetString("query", "")
 	if query == "" {
-		content := mcp.TextContent{
-			Text: "required query param",
-		}
 		return &mcp.CallToolResult{
-			Content: []mcp.Content{content},
+			Content: []mcp.Content{
+				mcp.TextContent{
+					Text: "required query param",
+				},
+			},
 			IsError: true,
 		}, nil
 	}
 
-	limit := req.GetInt("limit", DefaultSearchResultLimit)
-	results, err := executeFulltextSearch(ctx, query, limit)
+	keywords := strings.Split(query, " ")
+	limit := req.GetInt("limit", defaultSearchResultLimit)
+
+	results, err := executeFulltextSearch(ctx, keywords, limit)
 	if err != nil {
 		slog.Error("Failed to search knowledge graph", "err", err)
 	}
@@ -56,12 +57,21 @@ func SearchDiabetesKnowledgeGraph(ctx context.Context, req mcp.CallToolRequest) 
 	return mcp.NewToolResultJSON(results)
 }
 
-// 执行全文搜索，根据 query 匹配 Entity 节点的 name 和 type 属性
-func executeFulltextSearch(ctx context.Context, query string, limit int) ([]KnowlegeGraphSearchResult, error) {
+// 执行全文搜索，根据 keywords 模糊匹配 Entity 节点的 name 属性
+func executeFulltextSearch(ctx context.Context, keywords []string, limit int) ([]KnowlegeGraphSearchResult, error) {
 	session := dao.Driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
 	defer session.Close(ctx)
 
-	// 查询至少有一个关系的节点
+	// 构建模糊查询条件
+	var conditions []string
+	for _, keyword := range keywords {
+		// 转义单引号，防止 SQL 注入
+		keyword = strings.ReplaceAll(keyword, "'", "\\'")
+		conditions = append(conditions, fmt.Sprintf("node.name CONTAINS '%s'", keyword))
+	}
+	query := strings.Join(conditions, " OR ")
+
+	// 返回匹配查询且至少存在一个关系的节点
 	cypherQuery := `
 		CALL db.index.fulltext.queryNodes($indexName, $query) 
 		YIELD node, score
@@ -80,7 +90,7 @@ func executeFulltextSearch(ctx context.Context, query string, limit int) ([]Know
 	`
 
 	result, err := session.Run(ctx, cypherQuery, map[string]any{
-		"indexName": Neo4jFulltextName,
+		"indexName": Neo4jFulltextIndexName,
 		"query":     query,
 		"limit":     limit,
 	})

@@ -1,4 +1,4 @@
-package tool
+package tools
 
 import (
 	"context"
@@ -18,9 +18,10 @@ import (
 )
 
 const (
-	baseURL            = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-	embeddingModelName = "text-embedding-v4"
-	collectionName     = "knowledge_doc"
+	baseURL                  = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+	embeddingModelName       = "text-embedding-v4"
+	collectionName           = "knowledge_doc"
+	defaultSearchResultLimit = 20
 )
 
 var (
@@ -75,7 +76,8 @@ func SearchUserKnowledgeBase(ctx context.Context, req mcp.CallToolRequest) (*mcp
 		}, nil
 	}
 
-	limit := req.GetInt("limit", DefaultSearchResultLimit)
+	limit := req.GetInt("limit", defaultSearchResultLimit)
+
 	results, err := retrieveSimilarDocuments(ctx, query, limit)
 	if err != nil {
 		slog.Error("Failed to search vector store", "err", err)
@@ -94,6 +96,7 @@ func retrieveSimilarDocuments(ctx context.Context, query string, limit int) ([]V
 
 	// 从上下文获取用户邮箱
 	userEmail := ctx.Value("user_email").(string)
+
 	searchOption := client.NewSearchOption(collectionName, limit, []entity.Vector{entity.FloatVector(vector)}).
 		WithOutputFields("text").
 		WithFilter("user_email == '" + userEmail + "'")

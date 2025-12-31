@@ -2,16 +2,20 @@ package server
 
 import (
 	"diabetes-agent-mcp-server/middleware"
-	"diabetes-agent-mcp-server/tool"
+	"diabetes-agent-mcp-server/tools"
+	_ "embed"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
 const (
-	serverName    = "Diabetes Agent MCP Server"
+	serverName    = "Diabetes Knowledge Search MCP Server"
 	serverVersion = "1.0.0"
 )
+
+//go:embed prompts/search_diabetes_kg/query.txt
+var searchDiabetesKGQueryDesc string
 
 func NewHTTPServer() *server.StreamableHTTPServer {
 	hooks := &server.Hooks{}
@@ -25,12 +29,12 @@ func NewHTTPServer() *server.StreamableHTTPServer {
 		server.WithHooks(hooks),
 	)
 
-	addTools(s)
+	registerTools(s)
 
 	return server.NewStreamableHTTPServer(s)
 }
 
-func addTools(s *server.MCPServer) {
+func registerTools(s *server.MCPServer) {
 	s.AddTool(
 		mcp.NewTool("diabetes_knowledge_graph",
 			mcp.WithDescription(`
@@ -40,31 +44,33 @@ func addTools(s *server.MCPServer) {
 			`),
 			mcp.WithString("query",
 				mcp.Required(),
-				mcp.Description("Search query string"),
+				mcp.Description(searchDiabetesKGQueryDesc),
 			),
 			mcp.WithNumber("limit",
-				mcp.DefaultNumber(tool.DefaultSearchResultLimit),
-				mcp.Description("An even number of results to return (recommended between 10-20)"),
+				mcp.Min(10),
+				mcp.Max(20),
+				mcp.Description("Number of results to return"),
 			),
 		),
-		tool.SearchDiabetesKnowledgeGraph,
+		tools.SearchDiabetesKnowledgeGraph,
 	)
 
 	s.AddTool(
 		mcp.NewTool("user_knowledge_base",
 			mcp.WithDescription(`
 				Search the user's private knowledge base containing personal documents and information across various domains. 
-				Use this tool when you need to find specific information from the user's personal knowledge collection, 
-				especially when general knowledge is insufficient.`),
+				Use this tool when you need to find specific information from the user's personal knowledge collection, especially when general knowledge is insufficient.
+			`),
 			mcp.WithString("query",
 				mcp.Required(),
 				mcp.Description("Search query string"),
 			),
 			mcp.WithNumber("limit",
-				mcp.DefaultNumber(tool.DefaultSearchResultLimit),
-				mcp.Description("Number of results to return (recommended between 10-20)"),
+				mcp.Min(10),
+				mcp.Max(20),
+				mcp.Description("Number of results to return"),
 			),
 		),
-		tool.SearchUserKnowledgeBase,
+		tools.SearchUserKnowledgeBase,
 	)
 }

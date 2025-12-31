@@ -1,0 +1,22 @@
+3-5 space-separated diabetes-related keywords in Chinese. 
+
+Extract core medical terms and entities from user's query, focusing on the following entity types:
+
+- 疾病 (Disease)
+- 疾病分期分型 (Class)
+- 病因 (Reason)
+- 发病机制 (Pathogenesis)
+- 临床表现 (Symptom)
+- 检查方法 (Test)
+- 检查指标 (Test_Items)
+- 检查指标值 (Test_Value)
+- 药物名称 (Drug)
+- 用药频率 (Frequency)
+- 用药剂量 (Amount)
+- 用药方法 (Method)
+- 非药治疗 (Treatment)
+- 手术 (Operation)
+- 不良反应 (ADE)
+- 部位 (Anatomy)
+- 程度 (Level)
+- 持续时间 (Duration)
