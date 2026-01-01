@@ -36,7 +36,7 @@ func NewHTTPServer() *server.StreamableHTTPServer {
 
 func registerTools(s *server.MCPServer) {
 	s.AddTool(
-		mcp.NewTool("diabetes_knowledge_graph",
+		mcp.NewTool("search_diabetes_knowledge_graph",
 			mcp.WithDescription(`
 				Search professional information about diabetes guidelines, medications, diagnostics, and treatments. 
 				Returns structured data from knowledge graph (entities and relationships). 
@@ -56,14 +56,14 @@ func registerTools(s *server.MCPServer) {
 	)
 
 	s.AddTool(
-		mcp.NewTool("user_knowledge_base",
+		mcp.NewTool("search_user_knowledge_base",
 			mcp.WithDescription(`
 				Search the user's private knowledge base containing personal documents and information across various domains. 
 				Use this tool when you need to find specific information from the user's personal knowledge collection, especially when general knowledge is insufficient.
 			`),
 			mcp.WithString("query",
 				mcp.Required(),
-				mcp.Description("Search query string"),
+				mcp.Description("Professionally crafted diabetes-related query for RAG system, including key medical terminology and clinical context"),
 			),
 			mcp.WithNumber("limit",
 				mcp.Min(10),
